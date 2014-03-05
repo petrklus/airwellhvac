@@ -9,6 +9,8 @@ __copyright__   = "None really"
 import matplotlib.pyplot as plt
 import numpy as np
 import re
+import itertools
+from termcolor import colored
 
 tick_size = 100
 
@@ -176,5 +178,32 @@ def generate_pulses(ircom_bin, total_pulse_length=93.66, individual_lengths=(88.
     return zip(pulses[::2], pulses[1::2])
 
 
+
+
+# encode into ascii
+def bin_to_ascii(ones_zeros, char_offset=97):
+    """Use on split commands
+    NOTE - ENDs of splits are padded, therefore can introduce erroneous gaps
+    """
+    # http://docs.python.org/3.1/library/itertools.html#recipes
+    def grouper(n, iterable, fillvalue=None):
+        "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
+        args = [iter(iterable)] * n
+        return itertools.izip_longest(*args, fillvalue=fillvalue)
+    
+    out = ""
+    for quadruple in grouper(4, ones_zeros, "0"):    
+         out += chr(int('0b{}'.format("".join(quadruple)), 2)+char_offset)
+    return out
+
+def translate_print_first(label, ircom, print_binary=False):
+    ircom_bin = translate_to_binary_str(ircom)
+    if print_binary:
+        first_line = split_into_command_strings(ircom_bin)[0]
+        line = "".join(map(
+            lambda x: colored("1", "blue") if x=="1" else colored("0", "red"), first_line))
+        print line, label
+    else:
+        print map(bin_to_ascii, split_into_command_strings(ircom_bin))[0], label
 
 
