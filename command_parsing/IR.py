@@ -59,10 +59,16 @@ def bin_to_ascii(ones_zeros, char_offset=97):
          out += chr(int('0b{}'.format("".join(quadruple)), 2)+char_offset)
     return out
 
-
-def translate_print_first(label, ircom):
+from termcolor import colored
+def translate_print_first(label, ircom, print_binary=False):
     ircom_bin = translate_to_binary_str(ircom)
-    print map(bin_to_ascii, split_into_command_strings(ircom_bin))[0], label
+    if print_binary:
+        first_line = split_into_command_strings(ircom_bin)[0]
+        line = "".join(map(
+            lambda x: colored("1", "blue") if x=="1" else colored("0", "red"), first_line))
+        print line, label
+    else:
+        print map(bin_to_ascii, split_into_command_strings(ircom_bin))[0], label
 
     
 
@@ -80,7 +86,7 @@ analyse_titles = [
 ]
 
 for label, ircom in analyse_titles:
-    translate_print_first(label, ircom)
+    translate_print_first(label, ircom, print_binary=True)
 
 # print 
 # ircom_bin = translate_to_binary_str()
