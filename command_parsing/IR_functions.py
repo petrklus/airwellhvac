@@ -196,7 +196,8 @@ def bin_to_ascii(ones_zeros, char_offset=97):
          out += chr(int('0b{}'.format("".join(quadruple)), 2)+char_offset)
     return out
 
-def translate_print_first(label, ircom, print_binary=False):
+# TODO highlight
+def translate_print_first(label, ircom, print_binary=False, highlight=(0, 0)):
     ircom_bin = translate_to_binary_str(ircom)
     if print_binary:
         first_line = split_into_command_strings(ircom_bin)[0]
