@@ -12,6 +12,16 @@ from IR_captured import *
 # plot sample packet
 plot_signal(get_ir())
 
+def visualise(fetch_analyses):
+    print "".join([str(num/10) if num%10 == 0 else "-" for num in range(80)])
+    print "".join(map(str, range(10) * 8))
+    for query in fetch_analyses:
+        ircoms = get_ir(*query)
+        label = ", ".join(map(str,query))    
+        translate_print_first(label, ircoms[0], print_binary=True, highlight=(0, 6))
+    
+##
+# highlight&compare modes
 fetch_analyses = [
     (16, "HEAT",    1),
     (16, "COOL",    1),   
@@ -19,14 +29,30 @@ fetch_analyses = [
     (16, "FAN",     1),
     (16, 'DEHUM',   1)
 ]
+visualise(fetch_analyses)
 
+##
+# highlight&compare fan speeds
+fetch_analyses = [
+    (16, 'COOL',    1),
+    (16, "HEAT",    1),
+    (16, "HEAT",    2),   
+    (16, "HEAT",    3),        
+    (16, "HEAT",    4),
+]
+print "".join([str(num/10) if num%10 == 0 else "-" for num in range(80)])
+print "".join(map(str, range(10) * 8))
 for query in fetch_analyses:
     ircoms = get_ir(*query)
-    label = ", ".join(map(str,query))
-    translate_print_first(label, ircoms[0], print_binary=True)
+    label = ", ".join(map(str,query))    
+    translate_print_first(label, ircoms[0], print_binary=True, highlight=(0, 6))
+
+
 
 # packet structure
-# start
+# 0-7   :   8 bits start - 11100010 normal, TODO power toggle
+# 8-13  :   6 bits mode
+# 14-
 
 
 
