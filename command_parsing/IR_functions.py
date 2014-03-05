@@ -131,7 +131,15 @@ def translate_to_binary_str(ircom):
 command_end = "11110"
 def split_into_command_strings(ircom_bin):
     # get parts by detecting signal start    
-    pieces = [m.start() for m in re.finditer('11100010', ircom_bin)]
+    if ircom_bin.startswith('11100010'):
+        # normal command
+        split_part = '11100010'
+    elif ircom_bin.startswith('11100001'):
+        # toggle command
+        split_part = '11100001'
+    else:
+        raise Exception("Invalid command start")
+    pieces = [m.start() for m in re.finditer(split_part, ircom_bin)]
 
     command_ranges = zip(pieces, pieces[1:]) + [(pieces[-1], len(ircom_bin))]
     command_strings = [ircom_bin[start:end] for start, end in command_ranges] #end is not inclusive
