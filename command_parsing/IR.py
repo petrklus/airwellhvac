@@ -110,17 +110,18 @@ def construct_command(temperature=16, mode="HEAT", fan_speed=4,power_toggle=Fals
     }
     
     power_toggles = {
-        True: "11100001",
-        False: "11100010",
+        True: "01",
+        False: "10",
     }
     
-    command_part = "{}{}010110101010100101010110101010101010101010101010101010100110".format(
+    command_part = "111000{}{}010110101010100101010110101010101010101010101010101010100110".format(
         power_toggles[power_toggle],        
         modes[mode]
     )
         
     
-    
+
+visualise(records.keys(), highlight=(6, 8))    
     
     
     
