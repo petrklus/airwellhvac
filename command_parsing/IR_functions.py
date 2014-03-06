@@ -199,10 +199,23 @@ def bin_to_ascii(ones_zeros, char_offset=97):
 # TODO highlight
 def translate_print_first(label, ircom, print_binary=False, highlight=(0, 0)):
     ircom_bin = translate_to_binary_str(ircom)
+    
+    def assign_colour((index, x)):
+        h_start, h_end = highlight
+        h_col = "on_yellow" if index >= h_start and index < h_end else "on_grey"
+        if x == "1":
+            return colored("1", "blue", h_col)
+        else:
+            return colored("0", "red", h_col)
+    
     if print_binary:
         first_line = split_into_command_strings(ircom_bin)[0]
-        line = "".join(map(
-            lambda x: colored("1", "blue") if x=="1" else colored("0", "red"), first_line))
+        line = "".join(
+            map(
+                assign_colour, 
+                enumerate(first_line)
+            )
+        )
         print line, label
     else:
         print map(bin_to_ascii, split_into_command_strings(ircom_bin))[0], label

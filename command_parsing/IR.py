@@ -12,13 +12,13 @@ from IR_captured import *
 # plot sample packet
 plot_signal(get_ir())
 
-def visualise(fetch_analyses):
+def visualise(fetch_analyses, highlight=(28,36)):
     print "".join([str(num/10) if num%10 == 0 else "-" for num in range(80)])
     print "".join(map(str, range(10) * 8))
     for query in fetch_analyses:
         ircoms = get_ir(*query)
         label = ", ".join(map(str,query))    
-        translate_print_first(label, ircoms[0], print_binary=True, highlight=(0, 6))
+        translate_print_first(label, ircoms[0], print_binary=True, highlight=highlight)
     
 ##
 # highlight&compare modes
@@ -29,7 +29,7 @@ fetch_analyses = [
     (16, "FAN",     1),
     (16, 'DEHUM',   1)
 ]
-visualise(fetch_analyses)
+visualise(fetch_analyses, highlight=(8, 14))
 
 ##
 # highlight&compare fan speeds
@@ -40,25 +40,90 @@ fetch_analyses = [
     (16, "HEAT",    3),        
     (16, "HEAT",    4),
 ]
-print "".join([str(num/10) if num%10 == 0 else "-" for num in range(80)])
-print "".join(map(str, range(10) * 8))
-for query in fetch_analyses:
-    ircoms = get_ir(*query)
-    label = ", ".join(map(str,query))    
-    translate_print_first(label, ircoms[0], print_binary=True, highlight=(0, 6))
+visualise(fetch_analyses, highlight=(14, 19))
+
+# temperature
+fetch_analyses = [(temp, "HEAT", 4) for temp in range(16,31)]
+visualise(fetch_analyses)
+
+# power state
+fetch_analyses = [
+    (30, 'HEAT', 4, True),
+    (30, 'HEAT', 4, False),
+    (21, 'FAN', 4, True),
+    (21, 'FAN', 4, False),
+]
+visualise(fetch_analyses, highlight=(0, 8))
 
 
 
 # packet structure
 # 0-7   :   8 bits start - 11100010 normal, TODO power toggle
-# 8-13  :   6 bits mode
-# 14-
-
-
+# 8-13  :   6 bits mode (may include flap orientation?)
+# 14-18 :   4 bits fan speed
+# 19-27 :   padding? 010101010
+# 28-35 :   8 bits temperature
+# 36-70 :   padding?
 
 
 split_into_command_strings(translate_to_binary_str(ir_24_3_AUTO))
 split_into_command_strings(translate_to_binary_str(irT_29_3_HEAT))
+
+def construct_command(temperature=16, mode="HEAT", fan_speed=4,power_toggle=False):
+    """Constructs command"""
+
+    # failsafe checks
+    if mode == "DEHUM" and fan_speed > 1:
+        raise Exception("Invalid mode - DEHUM can only have fan speed of 1")      
+
+    temperatures = {
+        16 : "10101001",
+        17 : "10100110",
+        18 : "10100101",
+        19 : "10011010",
+        20 : "10011001",
+        21 : "10010110",
+        22 : "10010101",
+        23 : "01101010",
+        24 : "01101001",
+        25 : "01100110",
+        26 : "01100101",
+        27 : "01011010",
+        28 : "01011001",
+        29 : "01010110",
+        30 : "01010101"
+    }
+    
+    modes = {
+        "HEAT":    "100110",
+        "COOL":    "101001",
+        "AUTO":    "100101",
+        "FAN" :    "011001",
+        "DEHUM":   "011010"
+    } 
+    
+    fan_speeds = {
+        1: "10101",
+        2: "10011",
+        3: "01101",
+        4: "01011",
+    }
+    
+    power_toggles = {
+        True: "11100001",
+        False: "11100010",
+    }
+    
+    command_part = "{}{}010110101010100101010110101010101010101010101010101010100110".format(
+        power_toggles[power_toggle],        
+        modes[mode]
+    )
+        
+    
+    
+    
+    
+    
 
 
 plot_signal([ir_24_3_COOL, ir_24_3_HEAT])
