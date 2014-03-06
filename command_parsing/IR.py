@@ -44,7 +44,7 @@ visualise(fetch_analyses, highlight=(14, 19))
 
 # temperature
 fetch_analyses = [(temp, "HEAT", 4) for temp in range(16,31)]
-visualise(fetch_analyses)
+visualise(fetch_analyses, highlight=(28,36))
 
 # power state
 fetch_analyses = [
@@ -61,7 +61,7 @@ visualise(fetch_analyses, highlight=(0, 8))
 # 0-7   :   8 bits start - 11100010 normal, TODO power toggle
 # 8-13  :   6 bits mode (may include flap orientation?)
 # 14-18 :   4 bits fan speed
-# 19-27 :   padding? 010101010
+# 19-27 :   padding? 01 01 01 010
 # 28-35 :   8 bits temperature
 # 36-70 :   padding?
 
@@ -69,7 +69,8 @@ visualise(fetch_analyses, highlight=(0, 8))
 split_into_command_strings(translate_to_binary_str(ir_24_3_AUTO))
 split_into_command_strings(translate_to_binary_str(irT_29_3_HEAT))
 
-def construct_command(temperature=16, mode="HEAT", fan_speed=4,power_toggle=False):
+
+def construct_command_part(temperature, mode, fan_speed, power_toggle):    
     """Constructs command"""
 
     # failsafe checks
@@ -114,17 +115,62 @@ def construct_command(temperature=16, mode="HEAT", fan_speed=4,power_toggle=Fals
         False: "10",
     }
     
-    command_part = "111000{}{}010110101010100101010110101010101010101010101010101010100110".format(
+    start_pad = "111000"
+    second_pad = "010101010"
+    third_pad = "10101010101010101010101010101010100110"
+    
+    command_part = "{}{}{}{}{}{}{}".format(
+        start_pad,
         power_toggles[power_toggle],        
-        modes[mode]
+        modes[mode],
+        fan_speeds[fan_speed],
+        second_pad,
+        temperatures[temperature],
+        third_pad
     )
-        
+    return command_part
     
 
-visualise(records.keys(), highlight=(6, 8))    
-    
-    
-    
+def construct_full_command(temperature=16, mode="HEAT", fan_speed=4,power_toggle=False):
+    command_third = construct_command_part(temperature, mode, fan_speed, power_toggle)
+    full_command = "{}{}{}1111".format(*([command_third] * 3))
+    return full_command
+
+
+def arduino_flat_array(ircom_bin):
+    pulses = generate_pulses(ircom_bin)
+    pulses_flat = []
+    for (on, off) in pulses:
+        pulses_flat+= [on, off]
+    return pulses_flat
+
+
+array_send = arduino_flat_array(construct_full_command())
+
+split_into_command_strings(construct_full_command())
+
+
+visualise(records.keys(), highlight=(28, 36))   
+
+visualise([(16, "HEAT", 4)])    
+
+# test and compare:
+for params, value in records.iteritems():
+    first_part = split_into_command_strings(translate_to_binary_str(value[0]))[0]
+    print first_part == construct_command(*params)    
+
+outs = [[], [], []]
+for i, val in enumerate(zip(first_part, construct_command(*params))):
+    x, y = val
+    outs[0].append(x)
+    outs[1].append("." if x==y else "X")
+    outs[2].append(y)
+
+print "".join([str(num/10) if num%10 == 0 else "-" for num in range(80)])
+print "".join(map(str, range(10) * 8))    
+print "\n".join(map(lambda val: "".join(val), outs))
+
+
 
 
 plot_signal([ir_24_3_COOL, ir_24_3_HEAT])
