@@ -10,109 +10,84 @@ logging.basicConfig(filename=__file__.replace('.py','.log'),level=logging.DEBUG,
 """
 
 # from http://stackoverflow.com/questions/18752980/reading-serial-data-from-arduino-with-python
-class maxSonarSerialThread(threading.Thread):
-  def __init__(self, dataQ, errQ, port=None, baudrate=None):
-    self.logger = logging.getLogger('sonarSerialThread')
-    self.logger.debug('initializing')
-    threading.Thread.__init__(self)
-    self.ser = serial.Serial()
-    self.ser.timeout = 1
-    if port is None:
-      self.ser.port = "/dev/tty.usbserial-A6004amR"
-    else:
-      self.ser.port = port
-    if baudrate is None:
-      self.baudrate = 115200
-    else:
-      self.baudrate = baudrate
-    #self.ser.flushInput()
-    self.readCount = 0
-    self.sleepDurSec = 5
-    self.waitMaxSec = self.sleepDurSec * self.ser.baudrate / 10
-    self.dataQ = dataQ
-    self.errQ = errQ
-    self.keepAlive = True
-    self.stoprequest = threading.Event()
-    self.setDaemon(True)
-    self.dat = None
-    self.inputStarted = False
-    self.ver = 0.1
+class IRSerialCommunicator(threading.Thread):
+    def __init__(self, dataQ, errQ, port=None, baudrate=None):
+        self.logger = logging.getLogger('IRSerialCommunicator')
+        self.logger.debug('initializing')
+        threading.Thread.__init__(self)
+        self.ser = serial.Serial()
+        self.ser.timeout = 1
+        if port is None:
+          self.ser.port = "/dev/tty.usbmodem1421"
+        else:
+          self.ser.port = port
+        if baudrate is None:
+          self.baudrate = 115200
+        else:
+          self.baudrate = baudrate
+        #self.ser.flushInput()
+        self.readCount = 0
+        self.sleepDurSec = 5
+        self.waitMaxSec = self.sleepDurSec * self.ser.baudrate / 10
+        self.dataQ = dataQ
+        self.errQ = errQ
+        self.keepAlive = True
+        self.stoprequest = threading.Event()
+        self.setDaemon(True)
+        self.dat = None
+        self.inputStarted = False
+        self.ver = 0.1
 
-  def run(self):
-    self.logger.debug('running')
-    dataIn = False
-    while not self.stoprequest.isSet():
-      if not self.isOpen():
-        self.connectForStream()
+    def run(self):
+        self.logger.debug('Serial reader running')
+        dataIn = False
+        while not self.stoprequest.isSet():
+          if not self.isOpen():
+            self.connectForStream()
 
-      while self.keepAlive:
-        dat = self.ser.readline()
-        # some data validation goes here before adding to Queue...
-        self.dataQ.put(dat)
-        if not self.inputStarted:
-          self.logger.debug('reading')
-        self.inputStarted = True
-      self.dat.close()
-      self.close()
-      self.join_fin()
+          while self.keepAlive:
+            dat = self.ser.readline()
+            # some data validation goes here before adding to Queue...
+            self.dataQ.put(dat)
+            if not self.inputStarted:
+              self.logger.debug('reading')
+            self.inputStarted = True
+          self.dat.close()
+          self.close()
+          self.join_fin()
 
-  def join_fin(self):
-    self.logger.debug('stopping')
-    self.stoprequest.set()
+    def join_fin(self):
+        self.logger.debug('stopping')
+        self.stoprequest.set()
 
-  def connectForStream(self, debug=True):
-    '''Attempt to connect to the serial port and fail after waitMaxSec seconds'''
-    self.logger.debug('connecting')
-    if not self.isOpen():
-      self.logger.debug('not open, trying to open')
-      try:
-        self.open()
-      except serial.serialutil.SerialException:
-        self.logger.debug('Unable to use port ' + str(self.ser.port) + ', please verify and try again')
-        return
-    while self.readline() == '' and self.readCount < self.waitMaxSec and self.keepAlive:
-        self.logger.debug('reading initial')
-        self.readCount += self.sleepDurSec
-        if not self.readCount % (self.ser.baudrate / 100):
-          self.logger.debug("Verifying MaxSonar data..")
-          #some sanity check
+    def isOpen(self):
+        self.logger.debug('Open? ' + str(self.ser.isOpen()))
+        return self.ser.isOpen()
 
-    if self.readCount >= self.waitMaxSec:
-        self.logger.debug('Unable to read from MaxSonar...')
-        self.close()
-        return False
-    else:
-      self.logger.debug('MaxSonar data is streaming...')
+    def open(self):
+          self.ser.open()
 
-    return True
+    def stopDataAquisition(self):
+        self.logger.debug('Setting keepAlive to False')
+        self.keepAlive = False
 
-  def isOpen(self):
-    self.logger.debug('Open? ' + str(self.ser.isOpen()))
-    return self.ser.isOpen()
+    def close(self):
+        self.logger.debug('closing')
+        self.stopDataAquisition()
+        self.ser.close()
 
-  def open(self):
-    self.ser.open()
+    def write(self, msg):
+        self.ser.write(msg)
 
-  def stopDataAquisition(self):
-    self.logger.debug('Falsifying keepAlive')
-    self.keepAlive = False
-
-  def close(self):
-    self.logger.debug('closing')
-    self.stopDataAquisition()
-    self.ser.close()
-
-  def write(self, msg):
-    self.ser.write(msg)
-
-  def readline(self):
-    return self.ser.readline()
+    def readline(self):
+        return self.ser.readline()
 
 
+# TODO make a udev rule to make this constant
 port = "/dev/tty.usbmodem1421"
 dataQ = Queue.Queue()
 errQ = Queue.Queue()
-ser = maxSonarSerialThread(dataQ, errQ, port=port)
+ser = IRSerialCommunicator(dataQ, errQ, port=port)
 ser.daemon = True
 ser.start()
 
