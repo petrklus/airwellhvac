@@ -3,6 +3,7 @@
 int IRledPin =  3;    // LED connected to digital pin 13
 void setup()                    // run once, when the sketch starts
 {
+  pinMode(IRledPin, OUTPUT);   
   Serial.begin(115200);           // set up Serial library at 9600 bps  
 }
 
@@ -60,12 +61,19 @@ int readIntFromBytes() {
   return u.ulval;
 }
 
+int OK_timeout = 3000;
+long last_OK = 0;
 void loop() {
     
     //reset waiting for packet
     if (millis() - last_read > TIMEOUT) {
         cur_pulse_count = -1;
         //Serial.println("Abort");
+    }
+    
+    if (millis() - last_OK > OK_timeout) {
+        Serial.println("IR sender OK");
+        last_OK = millis();
     }
     
     // we have data
@@ -84,6 +92,7 @@ void loop() {
         } else {
             if (incomingByte == FINISHER) {
                 Serial.println("Command received");
+                transmitPulses();
                 printPulses();
                 Serial.println("Time taken:");
                 Serial.print(millis() - start_read, DEC);

@@ -70,79 +70,9 @@ split_into_command_strings(translate_to_binary_str(ir_24_3_AUTO))
 split_into_command_strings(translate_to_binary_str(irT_29_3_HEAT))
 
 
-def construct_command_part(temperature, mode, fan_speed, power_toggle):    
-    """Constructs command"""
-
-    # failsafe checks
-    if mode == "DEHUM" and fan_speed > 1:
-        raise Exception("Invalid mode - DEHUM can only have fan speed of 1")      
-
-    temperatures = {
-        16 : "10101001",
-        17 : "10100110",
-        18 : "10100101",
-        19 : "10011010",
-        20 : "10011001",
-        21 : "10010110",
-        22 : "10010101",
-        23 : "01101010",
-        24 : "01101001",
-        25 : "01100110",
-        26 : "01100101",
-        27 : "01011010",
-        28 : "01011001",
-        29 : "01010110",
-        30 : "01010101"
-    }
-    
-    modes = {
-        "HEAT":    "100110",
-        "COOL":    "101001",
-        "AUTO":    "100101",
-        "FAN" :    "011001",
-        "DEHUM":   "011010"
-    } 
-    
-    fan_speeds = {
-        1: "10101",
-        2: "10011",
-        3: "01101",
-        4: "01011",
-    }
-    
-    power_toggles = {
-        True: "01",
-        False: "10",
-    }
-    
-    start_pad = "111000"
-    second_pad = "010101010"
-    third_pad = "10101010101010101010101010101010100110"
-    
-    command_part = "{}{}{}{}{}{}{}".format(
-        start_pad,
-        power_toggles[power_toggle],        
-        modes[mode],
-        fan_speeds[fan_speed],
-        second_pad,
-        temperatures[temperature],
-        third_pad
-    )
-    return command_part
-    
-
-def construct_full_command(temperature=16, mode="HEAT", fan_speed=4,power_toggle=False):
-    command_third = construct_command_part(temperature, mode, fan_speed, power_toggle)
-    full_command = "{}{}{}1111".format(*([command_third] * 3))
-    return full_command
 
 
-def arduino_flat_array(ircom_bin):
-    pulses = generate_pulses(ircom_bin)
-    pulses_flat = []
-    for (on, off) in pulses:
-        pulses_flat+= [on, off]
-    return pulses_flat
+
 
 
 array_send = arduino_flat_array(construct_full_command())
