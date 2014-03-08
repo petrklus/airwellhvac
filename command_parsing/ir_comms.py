@@ -111,7 +111,7 @@ def packIntegerAsShort(value):
     """Packs a python 2 byte arduino int"""
     return struct.pack('h', value)    #should check bounds
 
-
+# TODO make this thread-safe, add commands to queue etc.
 def send_pulses(ser, pulses):
     packet_start = 1313
     packet_end   = 1414
