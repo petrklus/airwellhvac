@@ -12,13 +12,17 @@ from IR_captured import *
 # plot sample packet
 plot_signal(get_ir())
 
-def visualise(fetch_analyses, highlight=(28,36)):
+def visualise(fetch_analyses, highlight=(28,36), do_all=False):
     print "".join([str(num/10) if num%10 == 0 else "-" for num in range(80)])
     print "".join(map(str, range(10) * 8))
     for query in fetch_analyses:
         ircoms = get_ir(*query)
         label = ", ".join(map(str,query))    
-        translate_print_first(label, ircoms[0], print_binary=True, highlight=highlight)
+        if do_all:
+            for ircom in ircoms:
+                translate_print_first(label, ircom, print_binary=True, highlight=highlight)
+        else:    
+            translate_print_first(label, ircoms[0], print_binary=True, highlight=highlight)
     
 ##
 # highlight&compare modes
@@ -40,7 +44,7 @@ fetch_analyses = [
     (16, "HEAT",    3),        
     (16, "HEAT",    4),
 ]
-visualise(fetch_analyses, highlight=(14, 19))
+visualise(fetch_analyses, highlight=(14, 18))
 
 # temperature
 fetch_analyses = [(temp, "HEAT", 4) for temp in range(16,31)]
@@ -56,18 +60,43 @@ fetch_analyses = [
 visualise(fetch_analyses, highlight=(0, 8))
 
 
+# i feel function reverse-engineering (heat mode)
+fetch_analyses = [
+    (26, "HEAT", 4, False, 25),             
+    (25, "HEAT", 4, False, 25), 
+    (24, "HEAT", 4, False, 25),                 
+    (23, "HEAT", 4, False, 25),  
+    (22, "HEAT", 4, False, 25),                     
+    (22, "HEAT", 4, False, 24),                                    
+    (27, "HEAT", 4, False, 25),         
+    (27, "HEAT", 4, False, 24),  
+    (26, "HEAT", 4, False, 25),   
+    (26, "HEAT", 4, False, 24),   
+    (26, "HEAT", 4, False, 23),
+    (26, "HEAT", 4, False, 22),                                 
+    (26, "HEAT", 4, False, 21),                                     
+]
+visualise(fetch_analyses, highlight=(18, 36), do_all=True)
+
+
+
 
 # packet structure
 # 0-7   :   8 bits start - 11100010 normal, TODO power toggle
 # 8-13  :   6 bits mode (may include flap orientation?)
-# 14-18 :   4 bits fan speed
-# 19-27 :   padding? 01 01 01 010
+# 14-17 :   3 bits fan speed 
+# 18-27 :   padding? 01 01 01 010
 # 28-35 :   8 bits temperature
 # 36-70 :   padding?
 
 
+# i feel notes
+# 
+
+
 split_into_command_strings(translate_to_binary_str(ir_24_3_AUTO))
 split_into_command_strings(translate_to_binary_str(irT_29_3_HEAT))
+
 
 
 

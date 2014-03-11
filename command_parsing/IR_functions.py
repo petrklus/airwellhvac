@@ -254,10 +254,10 @@ def construct_command_part(temperature, mode, fan_speed, power_toggle):
     } 
     
     fan_speeds = {
-        1: "10101",
-        2: "10011",
-        3: "01101",
-        4: "01011",
+        1: "1010",
+        2: "1001",
+        3: "0110",
+        4: "0101",
     }
     
     power_toggles = {
@@ -266,7 +266,7 @@ def construct_command_part(temperature, mode, fan_speed, power_toggle):
     }
     
     start_pad = "111000"
-    second_pad = "010101010"
+    second_pad = "1010101010"
     third_pad = "10101010101010101010101010101010100110"
     
     command_part = "{}{}{}{}{}{}{}".format(
