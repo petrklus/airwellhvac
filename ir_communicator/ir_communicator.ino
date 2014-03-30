@@ -81,27 +81,40 @@ int readIntFromBytes() {
 int OK_timeout = 3000;
 long last_OK = 0;
 long last_sensor_reading;
-int sensor_timeout = 1000; //sample every 2s
+long last_sensor_broadcast;
+int sensor_timeout_broadcast = 1000; //report every 1s
+int sensor_timeout_reading = 100; //sample every 100ms
+
 int ON_THRESHOLD = 500;
+int LIGHT_DIFF = 200;
+int LDRReading0 = 0;
+int LDRReading1 = 0;
+int LDRReading2 = 0;
+int LDRReading3 = 0;
+
 void loop() {
+    
+    // sample interval
+    if (cur_pulse_count == -1 && millis() - last_sensor_reading > sensor_timeout_reading) {
+      LDRReading0 = analogRead(LDR_Pin0); 
+      LDRReading1 = analogRead(LDR_Pin1); 
+      LDRReading2 = analogRead(LDR_Pin2);  // light reference - should be dark
+      LDRReading3 = analogRead(LDR_Pin3);   
+      
+      digitalWrite(REDledPin, LDRReading0 - LDRReading2 > LIGHT_DIFF);
+      digitalWrite(GRNledPin, LDRReading1 - LDRReading2 > LIGHT_DIFF);
+      
+      last_sensor_reading = millis();
+    }
     
     // only transmit sensor reading when not in the middle of receiving a packet,
     // otherwise wait for the next cycle
-    if (cur_pulse_count == -1 && millis() - last_sensor_reading > sensor_timeout) {
-      int LDRReading0 = analogRead(LDR_Pin0); 
-      int LDRReading1 = analogRead(LDR_Pin1); 
-      int LDRReading2 = analogRead(LDR_Pin2); 
-      int LDRReading3 = analogRead(LDR_Pin3); 
-      
-      digitalWrite(REDledPin, LDRReading0 > ON_THRESHOLD);
-      digitalWrite(GRNledPin, LDRReading1 > ON_THRESHOLD);
-//      digitalWrite(YELledPin, LDRReading2 > ON_THRESHOLD);
-
+    if (cur_pulse_count == -1 && millis() - last_sensor_broadcast > sensor_timeout_broadcast) {
       Serial.print("L0:"); Serial.print(LDRReading0); Serial.print(";");
       Serial.print("L1:"); Serial.print(LDRReading1); Serial.print(";");
       Serial.print("L2:"); Serial.print(LDRReading2); Serial.print(";"); 
       Serial.print("L3:"); Serial.print(LDRReading3); Serial.println(";");      
-      last_sensor_reading = millis();
+      last_sensor_broadcast = millis();
     }  
   
     // keep-alive information

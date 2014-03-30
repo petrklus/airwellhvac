@@ -2,6 +2,7 @@ import serial
 import json
 import random
 import time
+import datetime
 import threading, Queue
 import logging
 import struct
@@ -153,7 +154,9 @@ def command_reader():
         try:
             a = dataQ.get()
             if len(a) > 1:
-                lines.append("{}: {}".format(a[0], str(a[1]).strip()))
+                d_time = datetime.datetime.fromtimestamp(a[0])
+                time_formatted = d_time.strftime('%H:%M:%S')
+                lines.append("{}: {}".format(time_formatted, str(a[1]).strip()))
         except Exception as e:
             msg = "Error receive: {}".format(e)
             print msg
