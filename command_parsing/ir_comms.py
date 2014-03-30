@@ -5,10 +5,11 @@ import time
 import threading, Queue
 import logging
 import struct
+import collections
 
 from bottle import route, run, template
 import IR_functions as irfun
-
+import time
 
 
 """
@@ -46,7 +47,8 @@ class IRSerialCommunicator(threading.Thread):
           while self.keepAlive:
             dat = self.ser.readline()
             # some data validation goes here before adding to Queue...
-            self.dataQ.put(dat)
+            if len(dat) > 2:
+                self.dataQ.put([time.time(), dat])
             if not self.inputStarted:
                 self.logger.debug('reading')
             self.inputStarted = True
@@ -121,56 +123,112 @@ def send_pulses(ser, pulses):
     ser.write(packIntegerAsShort(1414))
 
 
-import collections
+# def trigger_read():    
+#     while dataQ.qsize() > 0:
+#         a = dataQ.get(timeout=1)
+#         if len(a) > 1:
+#             lines.append("{}: {}".format(a[0], str(a[1]).strip()))
+
+
+
+##### command sending dispatcher
+command_q = Queue.Queue(maxsize=2)
+def command_sender():
+    while True:
+        item = command_q.get() #blocking call        
+        # TODO try twice/check confirmation?
+        try:
+            print item.run_action()     
+            print "Command sent"       
+        except Exception as e:
+            msg = "Error send: {}".format(e)
+            print msg
+
+##### command receiving processing
 lines = collections.deque(maxlen=50)
-def trigger_read():    
-    while dataQ.qsize() > 0:
-        a = dataQ.get(timeout=1)
-        if len(a) > 1:
-            lines.append(str(a).strip())
+def command_reader():
+    while True:
+        try:
+            a = dataQ.get()
+            if len(a) > 1:
+                lines.append("{}: {}".format(a[0], str(a[1]).strip()))
+        except Exception as e:
+            msg = "Error receive: {}".format(e)
+            print msg
 
 
-# bottle functions and definiti
+##### web routing
 @route('/hello/<name>')
 def index(name):
     return template('<b>Hello {{name}}</b>!', name=name)
 
-# example: 
+# send stuff
+# http://127.0.0.1:8080/send_command/23/HEAT/4/0
+# http://127.0.0.1:8080/send_command/23/HEAT/4/1
 @route('/send_command/<temp>/<mode>/<fan_speed>/<power_toggle>')
 def send_stuff(temp, mode, fan_speed, power_toggle):
-    # def construct_command_part(temperature, mode, fan_speed, power_toggle):  
-    try:
-        power_toggle = True if power_toggle == '1' else False
-        command = irfun.construct_full_command(
-            int(temp), 
-            mode,
-            int(fan_speed),
-            power_toggle
-        )
-    
-        pulses = irfun.arduino_flat_array(command)
-        
-        # send once
-        send_pulses(ser, pulses)  
-        
-        # repeat
-        if not power_toggle:
-            time.sleep(0.05)
-            send_pulses(ser, pulses)
-        
-        return "SENT: {} {} {} {}".format(int(temp), mode, int(fan_speed), power_toggle)  
-    except (ValueError, KeyError):
-        return "Malformed input."
+    params = temp, mode, fan_speed, power_toggle    
+    command = IRCommandWrapper(params)
+    command_q.put(command)    
+    return "Enqueued: {} {} {} {}".format(int(temp), mode, int(fan_speed), power_toggle)  
 
 
-    # ...
 
+
+output_template = """<html>
+    <head>
+        <meta name="author" content="Petr">
+        <meta charset="UTF-8">
+        <meta http-equiv="refresh" content="2">
+    </head>
+    <body>
+        <pre>{}</pre>
+    </body>
+</html>
+"""
 @route('/read')
 def read_out():
-    trigger_read()
-    return "\n".join(lines)
+    # trigger_read()
+    return output_template.format("\n".join(list(lines)[::-1]))
+
+
+class IRCommandWrapper(object):    
+    
+    def __init__(self, params):
+        self.params = params
+    
+    def send_stuff(self):
+        temp, mode, fan_speed, power_toggle = self.params
+        # def construct_command_part(temperature, mode, fan_speed, power_toggle):  
+        try:
+            power_toggle = True if power_toggle == '1' else False
+            command = irfun.construct_full_command(
+                int(temp), 
+                mode,
+                int(fan_speed),
+                power_toggle
+            )
+    
+            pulses = irfun.arduino_flat_array(command)        
+            # send once
+            send_pulses(ser, pulses)          
+            print pulses
+            # repeat if not power toggle
+            if not power_toggle:
+                time.sleep(1)
+                send_pulses(ser, pulses)        
+            return "SENT: {} {} {} {}".format(int(temp), mode, int(fan_speed), power_toggle)  
+        except (ValueError, KeyError):
+            return "Malformed input."
+    
+    def run_action(self):        
+        return self.send_stuff()
+
+
 
 if __name__=="__main__":    
+    
+    
     port = "/dev/tty.usbmodem1421"
     dataQ = Queue.Queue(maxsize=100)
     errQ = Queue.Queue(maxsize=100)
@@ -178,7 +236,18 @@ if __name__=="__main__":
     ser.daemon = True
     ser.start()
     
-        
+    # start command dispatcher    
+    num_worker_threads = 1
+    for i in range(num_worker_threads):
+         t = threading.Thread(target=command_sender)
+         t.daemon = True
+         t.start()
+         t = threading.Thread(target=command_reader)
+         t.daemon = True
+         t.start()
+    
+    # run webserver
+    # run(server='cherrypy', host='0.0.0.0', port=8080)
     run(host='0.0.0.0', port=8080)
 
 
