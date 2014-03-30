@@ -95,7 +95,7 @@ void loop() {
       
       digitalWrite(REDledPin, LDRReading0 > ON_THRESHOLD);
       digitalWrite(GRNledPin, LDRReading1 > ON_THRESHOLD);
-      digitalWrite(YELledPin, LDRReading2 > ON_THRESHOLD);
+//      digitalWrite(YELledPin, LDRReading2 > ON_THRESHOLD);
 
       Serial.print("L0:"); Serial.print(LDRReading0); Serial.print(";");
       Serial.print("L1:"); Serial.print(LDRReading1); Serial.print(";");
@@ -129,9 +129,11 @@ void loop() {
             } 
         } else {
             if (incomingByte == FINISHER) {
+                digitalWrite(YELledPin, HIGH);
                 Serial.println("Command received");
                 transmitPulses();
                 printPulses();
+                digitalWrite(YELledPin, LOW);
                 Serial.println("Time taken:");
                 Serial.print(millis() - start_read, DEC);
                 Serial.println(" millis");

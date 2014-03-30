@@ -143,6 +143,8 @@ def command_sender():
         except Exception as e:
             msg = "Error send: {}".format(e)
             print msg
+        # wait between issuing commands
+        time.sleep(2)
 
 ##### command receiving processing
 lines = collections.deque(maxlen=50)
