@@ -1,16 +1,16 @@
 
 // photo resistors
-int LDR_Pin0 = A0; //analog pin 0
-int LDR_Pin1 = A1; //analog pin 1
-int LDR_Pin2 = A2; //analog pin 2
-int LDR_Pin3 = A3; //analog pin 3
+int LDR_Pin0 = A1; //analog pin 0
+int LDR_Pin1 = A2; //analog pin 1
+int LDR_Pin2 = A3; //analog pin 2
+int LDR_Pin3 = A4; //analog pin 3
 
 
 #define IRpin_PIN      PIND
 #define IRpin          2
 int IRledPin =  3;             // LED connected to digital pin 3
-int REDledPin = 5;             // LED connected to digital pin 3
-int GRNledPin = 6;             // LED connected to digital pin 3
+int REDledPin = 6;             // LED connected to digital pin 3
+int GRNledPin = 5;             // LED connected to digital pin 3
 int YELledPin = 7;             // LED connected to digital pin 3
 
 void setup()                    // run once, when the sketch starts
@@ -86,7 +86,7 @@ int sensor_timeout_broadcast = 1000; //report every 1s
 int sensor_timeout_reading = 100; //sample every 100ms
 
 int ON_THRESHOLD = 500;
-int LIGHT_DIFF = 200;
+int LIGHT_DIFF = 100;
 int LDRReading0 = 0;
 int LDRReading1 = 0;
 int LDRReading2 = 0;
@@ -101,8 +101,12 @@ void loop() {
       LDRReading2 = analogRead(LDR_Pin2);  // light reference - should be dark
       LDRReading3 = analogRead(LDR_Pin3);   
       
-      digitalWrite(REDledPin, LDRReading0 - LDRReading2 > LIGHT_DIFF);
-      digitalWrite(GRNledPin, LDRReading1 - LDRReading2 > LIGHT_DIFF);
+      // 0 is reference reading
+      // 1 is on/off (on if in operation)
+      // 2 is standy (always on)
+      // 3 is outside
+      digitalWrite(REDledPin, LDRReading1 - LDRReading0 > LIGHT_DIFF);
+      digitalWrite(GRNledPin, LDRReading2 - LDRReading0 > LIGHT_DIFF);
       
       last_sensor_reading = millis();
     }
