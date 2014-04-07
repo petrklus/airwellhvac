@@ -19,7 +19,7 @@ void setup()                    // run once, when the sketch starts
   pinMode(REDledPin, OUTPUT);   
   pinMode(GRNledPin, OUTPUT);   
   pinMode(YELledPin, OUTPUT);
-  Serial.begin(115200);           // set up Serial library at 9600 bps  
+  Serial.begin(9600);           // set up Serial library at 9600 bps  
 }
 
 
@@ -66,8 +66,8 @@ int incomingByte = 0;
 int incomingByte2 = 0;
 int STARTER = 1313;
 int FINISHER = 1414;
-long last_read = 0;
-long start_read = 0;
+unsigned long last_read = 0;
+unsigned long start_read = 0;
 int readIntFromBytes() {
   union u_tag {
     byte b[2];
@@ -79,9 +79,9 @@ int readIntFromBytes() {
 }
 
 int OK_timeout = 3000;
-long last_OK = 0;
-long last_sensor_reading;
-long last_sensor_broadcast;
+unsigned long last_OK = 0;
+unsigned long last_sensor_reading;
+unsigned long last_sensor_broadcast;
 int sensor_timeout_broadcast = 1000; //report every 1s
 int sensor_timeout_reading = 100; //sample every 100ms
 
@@ -123,7 +123,7 @@ void loop() {
   
     // keep-alive information
     if (cur_pulse_count == -1 && millis() - last_OK > OK_timeout) {
-        Serial.println("IR sender OK");
+        Serial.println("OK");
         last_OK = millis();
     }
 
