@@ -114,6 +114,10 @@ def packIntegerAsShort(value):
     """Packs a python 2 byte arduino int"""
     return struct.pack('h', value)    #should check bounds
 
+
+
+
+
 # TODO make this thread-safe, add commands to queue etc.
 def send_pulses(ser, pulses):
     packet_start = 1313
@@ -122,14 +126,6 @@ def send_pulses(ser, pulses):
     for el in pulses:
         ser.write(packIntegerAsShort(el))
     ser.write(packIntegerAsShort(1414))
-
-
-# def trigger_read():    
-#     while dataQ.qsize() > 0:
-#         a = dataQ.get(timeout=1)
-#         if len(a) > 1:
-#             lines.append("{}: {}".format(a[0], str(a[1]).strip()))
-
 
 
 ##### command sending dispatcher
@@ -145,7 +141,7 @@ def command_sender():
             msg = "Error send: {}".format(e)
             print msg
         # wait between issuing commands
-        time.sleep(2)
+        time.sleep(5)
 
 ##### command receiving processing
 lines = collections.deque(maxlen=50)
@@ -160,6 +156,12 @@ def command_reader():
         except Exception as e:
             msg = "Error receive: {}".format(e)
             print msg
+
+
+# global status holding
+
+    
+
 
 
 ##### web routing
@@ -196,6 +198,28 @@ def read_out():
     # trigger_read()
     return output_template.format("\n".join(list(lines)[::-1]))
 
+# more defaults?
+current_state = {
+    "temp" : "22",
+    "power_toggle": "1",
+    # now stuff from sensors
+    "power_state": False,
+    "L0" : "0", # reference
+    "L1" : "0", # operation - on/off
+    "L2" : "0", # standy   
+    "L3" : "0", # ambient    
+}
+state_lock = threading.Lock()
+def set_state(temp, mode, fan_speed, power_toggle):
+    with state_lock:
+        current_state["temp"] = temp
+        current_state["mode"] = mode
+        current_state["fan_speed"] = fan_speed
+        current_state["power_toggle"] = power_toggle
+        current_state["timestamp"] = time.time()
+    
+
+
 
 class IRCommandWrapper(object):    
     
@@ -216,12 +240,15 @@ class IRCommandWrapper(object):
     
             pulses = irfun.arduino_flat_array(command)        
             # send once
-            send_pulses(ser, pulses)          
+            send_pulses(ser, pulses)                                              
             print pulses
             # repeat if not power toggle
             if not power_toggle:
-                time.sleep(1)
+                time.sleep(3)
                 send_pulses(ser, pulses)        
+            
+            # store state
+            set_state(*self.params)
             return "SENT: {} {} {} {}".format(int(temp), mode, int(fan_speed), power_toggle)  
         except (ValueError, KeyError):
             return "Malformed input."
@@ -237,7 +264,7 @@ if __name__=="__main__":
     port = "/dev/tty.usbmodem1421"
     dataQ = Queue.Queue(maxsize=100)
     errQ = Queue.Queue(maxsize=100)
-    ser = IRSerialCommunicator(dataQ, errQ, port=port, baudrate=115200)
+    ser = IRSerialCommunicator(dataQ, errQ, port=port, baudrate=9600)
     ser.daemon = True
     ser.start()
     
