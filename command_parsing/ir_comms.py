@@ -143,6 +143,55 @@ def command_sender():
         # wait between issuing commands
         time.sleep(5)
 
+
+
+# defaults for readings/state
+current_state = {
+    "temp" : "22",       # from last command sent
+    "power_toggle": "1", # from last command sent
+    # now stuff from sensors
+    "state_onoff": False,  # calculated property from sensors
+    "state_standby": False,  # calculated property from sensors    
+    "L0" : "0", # reference
+    "L1" : "0", # operation - on/off
+    "L2" : "0", # standy   
+    "L3" : "0", # ambient    
+}
+# prevent concurrent modification of the dictionary
+state_lock = threading.Lock()
+def set_state(temp, mode, fan_speed, power_toggle):
+    with state_lock:
+        current_state["temp"] = temp
+        current_state["mode"] = mode
+        current_state["fan_speed"] = fan_speed
+        current_state["power_toggle"] = power_toggle
+        current_state["timestamp"] = time.time()
+    
+LIGHT_DIFF = 100 #TODO move to config
+def determine_state():
+    ref     = int(current_state["L0"])
+    on_off  = int(current_state["L1"])
+    standby = int(current_state["L2"])
+    
+    # is the A/C running?
+    if on_off - ref > LIGHT_DIFF:
+        current_state["state_onoff"] = True
+    else:
+        current_state["state_onoff"] = False
+        
+    if standby - ref > LIGHT_DIFF:
+        current_state["state_standby"] = True
+    else:
+        current_state["state_standby"] = False
+
+
+def set_power(state=True):
+    # switch A/C on
+    # TODO leftoff here
+    pass
+    
+    
+
 ##### command receiving processing
 lines = collections.deque(maxlen=50)
 def command_reader():
@@ -153,21 +202,34 @@ def command_reader():
                 d_time = datetime.datetime.fromtimestamp(a[0])
                 time_formatted = d_time.strftime('%H:%M:%S')
                 lines.append("{}: {}".format(time_formatted, str(a[1]).strip()))
+                
+                # now parse the command:
+                text_contents = a[1]
+                readings = text_contents.split(";")
+                for reading in readings:
+                    try:
+                        key, val = reading.split(":")
+                        with state_lock:
+                            current_state[key] = val.strip()
+                    except ValueError:
+                        # invalid combination, ignore..
+                        continue
+                
+                
         except Exception as e:
             msg = "Error receive: {}".format(e)
             print msg
-
-
-# global status holding
-
-    
-
 
 
 ##### web routing
 @route('/hello/<name>')
 def index(name):
     return template('<b>Hello {{name}}</b>!', name=name)
+
+import json
+@route('/json_info')
+def json_out():    
+    return json.dumps(current_state)
 
 # send stuff
 # http://127.0.0.1:8080/send_command/23/HEAT/4/0
@@ -198,26 +260,6 @@ def read_out():
     # trigger_read()
     return output_template.format("\n".join(list(lines)[::-1]))
 
-# more defaults?
-current_state = {
-    "temp" : "22",
-    "power_toggle": "1",
-    # now stuff from sensors
-    "power_state": False,
-    "L0" : "0", # reference
-    "L1" : "0", # operation - on/off
-    "L2" : "0", # standy   
-    "L3" : "0", # ambient    
-}
-state_lock = threading.Lock()
-def set_state(temp, mode, fan_speed, power_toggle):
-    with state_lock:
-        current_state["temp"] = temp
-        current_state["mode"] = mode
-        current_state["fan_speed"] = fan_speed
-        current_state["power_toggle"] = power_toggle
-        current_state["timestamp"] = time.time()
-    
 
 
 
@@ -260,13 +302,22 @@ class IRCommandWrapper(object):
 
 if __name__=="__main__":    
     
-    
+    # TODO make this configurable
     port = "/dev/tty.usbmodem1421"
     dataQ = Queue.Queue(maxsize=100)
     errQ = Queue.Queue(maxsize=100)
-    ser = IRSerialCommunicator(dataQ, errQ, port=port, baudrate=9600)
+
+    mock_serial = False
+    if mock_serial:
+        import os, pty, serial
+        master, slave = pty.openpty()
+        s_name = os.ttyname(slave)
+        ser = IRSerialCommunicator(dataQ, errQ, port=s_name, baudrate=9600)
+    else:
+        ser = IRSerialCommunicator(dataQ, errQ, port=port, baudrate=9600)
     ser.daemon = True
     ser.start()
+    
     
     # start command dispatcher    
     num_worker_threads = 1
