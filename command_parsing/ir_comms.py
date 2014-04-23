@@ -145,7 +145,7 @@ def command_sender():
             msg = "Error send: {}".format(e)
             print msg
         # wait between issuing commands
-        time.sleep(2)
+        time.sleep(5)
 
 ##### command receiving processing
 lines = collections.deque(maxlen=50)
@@ -220,7 +220,7 @@ class IRCommandWrapper(object):
             print pulses
             # repeat if not power toggle
             if not power_toggle:
-                time.sleep(1)
+                time.sleep(3)
                 send_pulses(ser, pulses)        
             return "SENT: {} {} {} {}".format(int(temp), mode, int(fan_speed), power_toggle)  
         except (ValueError, KeyError):
@@ -234,10 +234,10 @@ class IRCommandWrapper(object):
 if __name__=="__main__":    
     
     
-    port = "/dev/tty.usbmodem1421"
+    port = "/dev/ttyACM0"
     dataQ = Queue.Queue(maxsize=100)
     errQ = Queue.Queue(maxsize=100)
-    ser = IRSerialCommunicator(dataQ, errQ, port=port, baudrate=115200)
+    ser = IRSerialCommunicator(dataQ, errQ, port=port, baudrate=9600)
     ser.daemon = True
     ser.start()
     
