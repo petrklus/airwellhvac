@@ -378,8 +378,8 @@ if __name__=="__main__":
          t.start()
     
     # run webserver
-    # run(server='cherrypy', host='0.0.0.0', port=8080)
-    run(host='0.0.0.0', port=8080)
+    run(server='cherrypy', host='0.0.0.0', port=8080)
+    # run(host='0.0.0.0', port=8080)
 
 
 
