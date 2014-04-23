@@ -258,7 +258,7 @@ def command_reader():
                         with state_lock:
                             current_state[key] = val.strip()
                             # mark last reading
-                            current_state[last_success_reading] = time.time()
+                            current_state["last_success_reading"] = time.time()
                     except ValueError:
                         # invalid combination, ignore..
                         continue
