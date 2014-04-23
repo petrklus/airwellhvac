@@ -236,8 +236,6 @@ def set_power(state=True):
     # TODO leftoff here
     pass
     
-    
->>>>>>> 687d93eed9bf48bf248e42d695b0b283cab33a39
 
 ##### command receiving processing
 lines = collections.deque(maxlen=50)
