@@ -11,7 +11,7 @@ import collections
 from bottle import route, run, template
 import IR_functions as irfun
 import time
-
+import logging
 
 """
 logging.basicConfig(filename=__file__.replace('.py','.log'),level=logging.DEBUG,format='%(asctime)s [%(name)s.%(funcName)s] %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode='a')
@@ -135,11 +135,12 @@ def command_sender():
         item = command_q.get() #blocking call        
         # TODO try twice/check confirmation?
         try:
-            print item.run_action()     
-            print "Command sent"       
+            logging.info(item.run_action())
+            logging.debug("Command sent")
         except Exception as e:
             msg = "Error send: {}".format(e)
-            print msg
+            logging.warn(msg)
+            logging.exception(e)
         # wait between issuing commands
         time.sleep(5)
 
@@ -155,8 +156,12 @@ current_state = {
     "L0" : "0", # reference
     "L1" : "0", # operation - on/off
     "L2" : "0", # standy   
-    "L3" : "0", # ambient    
+    "L3" : "0", # ambient  
+    # computed state
+    "operational_state" : 3,
+    "last_success_reading" : 0,
 }
+
 # prevent concurrent modification of the dictionary
 state_lock = threading.Lock()
 def set_state(temp, mode, fan_speed, power_toggle):
@@ -167,22 +172,63 @@ def set_state(temp, mode, fan_speed, power_toggle):
         current_state["power_toggle"] = power_toggle
         current_state["timestamp"] = time.time()
     
+    
 LIGHT_DIFF = 100 #TODO move to config
+TIMEOUT_SECONDS = 10 #when is reading considered stale
 def determine_state():
     ref     = int(current_state["L0"])
     on_off  = int(current_state["L1"])
     standby = int(current_state["L2"])
     
-    # is the A/C running?
-    if on_off - ref > LIGHT_DIFF:
-        current_state["state_onoff"] = True
-    else:
-        current_state["state_onoff"] = False
+    with state_lock:
+        # is the A/C running?
+        if on_off - ref > LIGHT_DIFF:
+            current_state["state_onoff"] = True
+        else:
+            current_state["state_onoff"] = False
         
-    if standby - ref > LIGHT_DIFF:
-        current_state["state_standby"] = True
-    else:
-        current_state["state_standby"] = False
+        if standby - ref > LIGHT_DIFF:
+            current_state["state_standby"] = True
+        else:
+            current_state["state_standby"] = False
+    
+        # determine operational state    
+        since_last = time.time() - current_state["last_success_reading"]
+        if since_last > TIMEOUT_SECONDS:
+            current_state["operational_state"] = 3
+        elif current_state["state_onoff"] and current_state["state_standby"]:
+            current_state["operational_state"] = 2
+        elif current_state["state_standby"]:
+            current_state["operational_state"] = 1
+        else:
+            current_state["operational_state"] = 0
+
+def determine_state_loop():
+    logging.info("Command")
+    while True:
+        try:            
+            determine_state()
+            # wait 0.5s
+            time.sleep(0.5)
+                
+        except Exception as e:
+            msg = "Error determining state: {}".format(e)
+            logging.warn(msg)
+            logging.exception(e)
+
+# 
+t = threading.Thread(target=determine_state_loop)
+t.daemon = True
+t.start()
+
+
+# operational states representation
+operational_states = {
+    0   : "Off",
+    1   : "Standby",
+    2   : "In operation",
+    3   : "Error/could not determine",
+}
 
 
 def set_power(state=True):
@@ -211,14 +257,17 @@ def command_reader():
                         key, val = reading.split(":")
                         with state_lock:
                             current_state[key] = val.strip()
+                            # mark last reading
+                            current_state[last_success_reading] = time.time()
                     except ValueError:
                         # invalid combination, ignore..
                         continue
                 
                 
         except Exception as e:
-            msg = "Error receive: {}".format(e)
-            print msg
+            msg = "Error receive: {}".format(e)            
+            logging.warn(msg)
+            logging.exception(e)
 
 
 ##### web routing
@@ -262,9 +311,8 @@ def read_out():
 
 
 
-
 class IRCommandWrapper(object):    
-    
+    """Wrapper for commands to be enqueued"""
     def __init__(self, params):
         self.params = params
     
@@ -283,7 +331,7 @@ class IRCommandWrapper(object):
             pulses = irfun.arduino_flat_array(command)        
             # send once
             send_pulses(ser, pulses)                                              
-            print pulses
+            logging.debug(pulses)
             # repeat if not power toggle
             if not power_toggle:
                 time.sleep(3)
@@ -297,7 +345,6 @@ class IRCommandWrapper(object):
     
     def run_action(self):        
         return self.send_stuff()
-
 
 
 if __name__=="__main__":    
@@ -332,6 +379,7 @@ if __name__=="__main__":
     # run webserver
     # run(server='cherrypy', host='0.0.0.0', port=8080)
     run(host='0.0.0.0', port=8080)
+
 
 
 """
