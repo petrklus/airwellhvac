@@ -231,11 +231,6 @@ operational_states = {
 }
 
 
-def set_power(state=True):
-    # switch A/C on
-    # TODO leftoff here
-    pass
-    
 
 ##### command receiving processing
 lines = collections.deque(maxlen=50)
@@ -282,13 +277,69 @@ def json_out():
 # send stuff
 # http://127.0.0.1:8080/send_command/23/HEAT/4/0
 # http://127.0.0.1:8080/send_command/23/HEAT/4/1
-@route('/send_command/<temp>/<mode>/<fan_speed>/<power_toggle>')
-def send_stuff(temp, mode, fan_speed, power_toggle):
+@route('/send_command/<temp>/<mode>/<fan_speed>')
+def send_stuff(temp, mode, fan_speed, power_toggle=False):
     params = temp, mode, fan_speed, power_toggle    
     command = IRCommandWrapper(params)
     command_q.put(command)    
     return "Enqueued: {} {} {} {}".format(int(temp), mode, int(fan_speed), power_toggle)  
 
+power_toggle_lock = threading.Lock()
+@route('/set_power/<desired_state>')
+def set_power(desired_state):
+    """
+    Tries multiple times to set power to desired
+    state. Only allows one process to perform this
+    at a time.
+    """
+    
+    desired_state = True if str(desired_state) == "1" else False
+    
+    if current_state["operational_state"] > 2:
+        return "ERR: Not in operation"
+
+    if desired_state and current_state["operational_state"] == 2:
+        return "OK: Already ON"    
+    elif not desired_state and current_state["operational_state"] == 1:
+        return "OK: Already OFF"
+    
+    if power_toggle_lock.acquire(False):        
+        try:
+            # let's try to send ON command
+            NO_ATTEMPTS = 3  
+            NO_WAITS = 2 
+                        
+            for i in range(NO_ATTEMPTS):
+                with state_lock:
+                    temp      = current_state["temp"]
+                    mode      = current_state["mode"]
+                    fan_speed = current_state["fan_speed"]
+
+                power_toggle = True                
+                params = temp, mode, fan_speed, power_toggle    
+                command = IRCommandWrapper(params)
+                command_q.put(command)                
+                # try to action the above 
+                time.sleep(2)
+                for _ in range(NO_WAITS):
+                    if desired_state \
+                        and current_state["operational_state"] == 2:
+                        return "OK: Switched ON"
+                    elif not desired_state \
+                        and current_state["operational_state"] == 1:            
+                        return "OK: Switched OFF"
+                    time.sleep(1.5)
+                # wait between attempts
+                time.sleep(2)
+            # if
+            return "ERR: Not able to action command"
+        finally:
+            # release us!
+            power_toggle_lock.release()
+                
+    else:
+        # we do not have a lock, something else already running
+        return "ERR: Already executing"
 
 
 
