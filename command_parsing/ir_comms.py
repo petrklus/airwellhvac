@@ -129,7 +129,7 @@ def send_pulses(ser, pulses):
 
 
 ##### command sending dispatcher
-command_q = Queue.Queue(maxsize=2)
+command_q = Queue.Queue(maxsize=1)
 def command_sender():
     while True:
         item = command_q.get() #blocking call        
@@ -323,8 +323,21 @@ def set_power(desired_state):
             # let's try to send ON command
             NO_ATTEMPTS = 3  
             NO_WAITS = 2 
-                        
+            
+            # wait to see if anything is in the queue
+            # empty queue            
+            while True:
+                try:
+                    throwaway = command_q.get(block=False)
+                except Queue.Empty:
+                    # break the loop
+                    break
+            # wait for state to update itself
+            time.sleep(2)
+
+            # proceed to sending
             for i in range(NO_ATTEMPTS):
+                # flush any sent stuff              
                 with state_lock:
                     temp      = current_state["temp"]
                     mode      = current_state["mode"]
