@@ -361,9 +361,9 @@ def set_power(desired_state):
                     elif not desired_state \
                         and current_state["operational_state"] == 1:            
                         return "OK: Switched OFF"
-                    time.sleep(1.5)
+                    time.sleep(2)
                 # wait between attempts
-                time.sleep(2)
+                time.sleep(6)
             # if
             return "ERR: Not able to action command"
         finally:
