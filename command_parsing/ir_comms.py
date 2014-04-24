@@ -313,6 +313,8 @@ def set_power(desired_state):
     if current_state["operational_state"] > 2:
         return "ERR: Not in operation"
 
+        
+    # TODO detect "blinking" - maybe smooth on Arduino side/here?
     if desired_state and current_state["operational_state"] == 2:
         return "OK: Already ON"    
     elif not desired_state and current_state["operational_state"] == 1:
@@ -334,6 +336,12 @@ def set_power(desired_state):
                     break
             # wait for state to update itself
             time.sleep(2)
+
+            # re-try state detection after flush
+            if desired_state and current_state["operational_state"] == 2:
+                return "OK: Already ON"    
+            elif not desired_state and current_state["operational_state"] == 1:
+                return "OK: Already OFF"
 
             # proceed to sending
             for i in range(NO_ATTEMPTS):
