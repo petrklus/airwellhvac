@@ -276,17 +276,30 @@ import json
 def json_out():    
     return json.dumps(current_state)
 
+# lock to represent manipulation of power state,
+# wait with any other
+power_toggle_lock = threading.Lock()
+
 # send stuff
-# http://127.0.0.1:8080/send_command/23/HEAT/4/0
-# http://127.0.0.1:8080/send_command/23/HEAT/4/1
+# http://127.0.0.1:8080/send_command/23/HEAT/4
+# http://127.0.0.1:8080/send_command/23/HEAT/4
 @route('/send_command/<temp>/<mode>/<fan_speed>')
 def send_stuff(temp, mode, fan_speed, power_toggle=False):
-    params = temp, mode, fan_speed, power_toggle    
-    command = IRCommandWrapper(params)
-    command_q.put(command)    
-    return "Enqueued: {} {} {} {}".format(int(temp), mode, int(fan_speed), power_toggle)  
+    # make sure we do not enqueue other stuff
+    if power_toggle_lock.acquire(False):        
+        try:
+            params = temp, mode, fan_speed, power_toggle    
+            command = IRCommandWrapper(params)
+            command_q.put(command)    
+            return "OK: Enqueued {} {} {}".format(
+                int(temp), mode, int(fan_speed))  
+        finally:
+            # release the lock
+            power_toggle_lock.release()
+    else:
+        return "ERR: More priviledged command running (power toggle)"
 
-power_toggle_lock = threading.Lock()
+
 @route('/set_power/<desired_state>')
 def set_power(desired_state):
     """
