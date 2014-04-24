@@ -346,9 +346,14 @@ def set_power(desired_state):
                 power_toggle = "1"                
                 params = temp, mode, fan_speed, power_toggle    
                 command = IRCommandWrapper(params)
-                command_q.put(command)                
+                command_q.put(command)    
+                
+                # wait the packet to be picked up
+                while not command_q.empty():
+                    time.sleep(0.1)
+                            
                 # try to action the above 
-                time.sleep(2)
+                time.sleep(4)
                 for _ in range(NO_WAITS):
                     if desired_state \
                         and current_state["operational_state"] == 2:
