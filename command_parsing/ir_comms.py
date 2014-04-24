@@ -148,8 +148,10 @@ def command_sender():
 
 # defaults for readings/state
 current_state = {
-    "temp" : "22",       # from last command sent
+    "temp" :        "22",       # from last command sent
     "power_toggle": "1", # from last command sent
+    "mode":         "AUTO",
+    "fan_speed":    "4",
     # now stuff from sensors
     "state_onoff": False,  # calculated property from sensors
     "state_standby": False,  # calculated property from sensors    
