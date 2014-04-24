@@ -317,7 +317,7 @@ def set_power(desired_state):
                     mode      = current_state["mode"]
                     fan_speed = current_state["fan_speed"]
 
-                power_toggle = True                
+                power_toggle = "1"                
                 params = temp, mode, fan_speed, power_toggle    
                 command = IRCommandWrapper(params)
                 command_q.put(command)                
