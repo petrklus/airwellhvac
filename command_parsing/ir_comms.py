@@ -304,7 +304,7 @@ def send_stuff(temp, mode, fan_speed, power_toggle=False):
 def set_full_state(temp, mode, fan_speed, desired_state):
     send_stuff(temp, mode, fan_speed)
     time.sleep(2)
-    set_power(desired_state)
+    return set_power(desired_state)
     
 
 @route('/set_power/<desired_state>')
