@@ -286,7 +286,7 @@ power_toggle_lock = threading.Lock()
 @route('/send_command/<temp>/<mode>/<fan_speed>')
 def send_stuff(temp, mode, fan_speed, power_toggle=False):
     # make sure we do not enqueue other stuff
-    if power_toggle_lock.acquire():        
+    if power_toggle_lock.acquire(False):        
         try:
             params = temp, mode, fan_speed, power_toggle    
             command = IRCommandWrapper(params)
@@ -297,7 +297,7 @@ def send_stuff(temp, mode, fan_speed, power_toggle=False):
             # release the lock
             power_toggle_lock.release()
     else:
-        return "ERR: More priviledged command running (power toggle)"
+        return "ERR: Already adding command!"
 
 
 @route('/set_full_state/<temp>/<mode>/<fan_speed>/<desired_state>')
