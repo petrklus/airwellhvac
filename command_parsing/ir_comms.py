@@ -129,7 +129,7 @@ def send_pulses(ser, pulses):
 
 
 ##### command sending dispatcher
-command_q = Queue.Queue(maxsize=1)
+command_q = Queue.Queue(maxsize=2)
 def command_sender():
     while True:
         item = command_q.get() #blocking call        
@@ -286,7 +286,7 @@ power_toggle_lock = threading.Lock()
 @route('/send_command/<temp>/<mode>/<fan_speed>')
 def send_stuff(temp, mode, fan_speed, power_toggle=False):
     # make sure we do not enqueue other stuff
-    if power_toggle_lock.acquire(False):        
+    if power_toggle_lock.acquire():        
         try:
             params = temp, mode, fan_speed, power_toggle    
             command = IRCommandWrapper(params)
@@ -335,7 +335,7 @@ def set_power(desired_state):
                     # break the loop
                     break
             # wait for state to update itself
-            time.sleep(2)
+            time.sleep(3)
 
             # re-try state detection after flush
             if desired_state and current_state["operational_state"] == 2:
