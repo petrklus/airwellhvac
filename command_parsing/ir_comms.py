@@ -294,7 +294,7 @@ power_toggle_lock = threading.Lock()
 # http://127.0.0.1:8080/send_command/23/HEAT/4
 # http://127.0.0.1:8080/send_command/23/HEAT/4
 @route('/send_command/<temp>/<mode>/<fan_speed>')
-def send_stuff(temp, mode, fan_speed, power_toggle=False):
+def send_stuff(temp, mode, fan_speed, power_toggle="0"):
     # make sure we do not enqueue other stuff
     try:
         params = temp, mode, fan_speed, power_toggle    
