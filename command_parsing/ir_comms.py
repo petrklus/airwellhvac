@@ -296,9 +296,9 @@ power_toggle_lock = threading.Lock()
 @route('/send_command/<temp>/<mode>/<fan_speed>')
 def send_stuff(temp, mode, fan_speed, power_toggle=False):
     # make sure we do not enqueue other stuff
-    params = temp, mode, fan_speed, power_toggle    
-    command = GenericIRCommandWrapper(params)
     try:
+        params = temp, mode, fan_speed, power_toggle    
+        command = GenericIRCommandWrapper(params)
         # append while discarding prev items
         command_q.append(command)    
         return "OK: Enqueued {} {} {}".format(
@@ -310,9 +310,9 @@ def send_stuff(temp, mode, fan_speed, power_toggle=False):
 
 @route('/set_full_state/<temp>/<mode>/<fan_speed>/<desired_state>')
 def set_full_state(temp, mode, fan_speed, desired_state):
-    params = temp, mode, fan_speed, desired_state    
-    command = PowerIRCommandWrapper(params)
     try:
+        params = temp, mode, fan_speed, desired_state    
+        command = PowerIRCommandWrapper(params)
         # append while discarding prev items
         command_q.append(command)
         return "OK: Enqueued {} {} {} {}".format(
