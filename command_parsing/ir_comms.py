@@ -358,8 +358,7 @@ def get_time_formatted():
 class GenericIRCommandWrapper(object):    
     """Wrapper for commands to be enqueued"""
     def __init__(self, params):
-        
-        
+                
         temp, mode, fan_speed, power_var = params  
         try:
             if int(temp) < 16 or int(temp) > 30:
@@ -382,7 +381,7 @@ class GenericIRCommandWrapper(object):
     
     def send_stuff(self):
         temp, mode, fan_speed, power_toggle = self.params
-        # def construct_command_part(temperature, mode, fan_speed, power_toggle):  
+        
         try:
             power_toggle = True if power_toggle == '1' else False
             command = irfun.construct_full_command(
@@ -419,7 +418,6 @@ class PowerIRCommandWrapper(GenericIRCommandWrapper):
     
     def send_stuff(self):
         
-        # TODO make sure this makes sense
         temp, mode, fan_speed, desired_state = self.params
         
         """Overrides normal send stuff"""
@@ -445,10 +443,10 @@ class PowerIRCommandWrapper(GenericIRCommandWrapper):
         
         if not toggle_power:
             # convert desired state to power toggle
-            power_toggle = False
+            power_toggle = "0"
             params = temp, mode, fan_speed, power_toggle   
             self.params = params
-            super(PowerIRCommandWrapper, self).send_stuff()
+            return super(PowerIRCommandWrapper, self).send_stuff()                        
             
         else:
             # let's try to send ON command
@@ -461,10 +459,12 @@ class PowerIRCommandWrapper(GenericIRCommandWrapper):
                 power_toggle = "1"                
                 params = temp, mode, fan_speed, power_toggle   
                 self.params = params
+                
+                # TODO - get return state of this
                 super(PowerIRCommandWrapper, self).send_stuff()
 
                 # wait for the system to update itself
-                time.sleep(2)
+                time.sleep(2.5)
 
                 # check a few times if all went well
                 for _ in range(NO_WAITS):
@@ -481,7 +481,7 @@ class PowerIRCommandWrapper(GenericIRCommandWrapper):
                     # wait between checking again
                     time.sleep(2)
 
-                # wait between attempts
+                # wait between send attempts
                 time.sleep(6)
             # if
             return "ERR: Not able to action command"
@@ -508,16 +508,14 @@ if __name__=="__main__":
     
     
     # start command dispatcher    
-    num_worker_threads = 1
-    for i in range(num_worker_threads):
-         t = threading.Thread(target=command_sender)
-         t.daemon = True
-         t.start()
-         t = threading.Thread(target=command_reader)
-         t.daemon = True
-         t.start()
-    
-    # run webserver
+    sender = threading.Thread(target=command_sender)
+    sender.daemon = True
+    sender.start()
+    reader = threading.Thread(target=command_reader)
+    reader.daemon = True
+    reader.start()
+
+    # run webserver, multi threaded, world-accessible
     run(server='cherrypy', host='0.0.0.0', port=8080)
     # run(host='0.0.0.0', port=8080)
 
