@@ -129,10 +129,20 @@ def send_pulses(ser, pulses):
 
 
 ##### command sending dispatcher
-command_q = Queue.Queue(maxsize=2)
+from collections import deque
+command_q = deque(maxlen=2)
 def command_sender():
-    while True:
-        item = command_q.get() #blocking call        
+    while True:        
+        # queue fetching 
+        while True:
+            try:
+                item = command_q.pop() #non-blocking call                       
+                break # break out of the fetching loop, we have item
+            except IndexError:
+                # wait for tiny bit between checking
+                time.sleep(0.1)
+                # continue
+                continue
         # TODO try twice/check confirmation?
         try:
             logging.info(item.run_action())
@@ -286,109 +296,38 @@ power_toggle_lock = threading.Lock()
 @route('/send_command/<temp>/<mode>/<fan_speed>')
 def send_stuff(temp, mode, fan_speed, power_toggle=False):
     # make sure we do not enqueue other stuff
-    if power_toggle_lock.acquire(False):        
-        try:
-            params = temp, mode, fan_speed, power_toggle    
-            command = IRCommandWrapper(params)
-            command_q.put(command)    
-            return "OK: Enqueued {} {} {}".format(
-                int(temp), mode, int(fan_speed))  
-        finally:
-            # release the lock
-            power_toggle_lock.release()
-    else:
-        return "ERR: Already adding command!"
+    params = temp, mode, fan_speed, power_toggle    
+    command = GenericIRCommandWrapper(params)
+    try:
+        # append while discarding prev items
+        command_q.append(command)    
+        return "OK: Enqueued {} {} {}".format(
+            int(temp), mode, int(fan_speed))  
+    except Exception, e:
+        return "ERR: {} {} {} {}".format(
+            str(e), int(temp), mode, int(fan_speed))
 
 
 @route('/set_full_state/<temp>/<mode>/<fan_speed>/<desired_state>')
 def set_full_state(temp, mode, fan_speed, desired_state):
+    params = temp, mode, fan_speed, desired_state    
+    command = PowerIRCommandWrapper(params)
+    try:
+        # append while discarding prev items
+        command_q.append(command)
+        return "OK: Enqueued {} {} {} {}".format(
+            int(temp), mode, int(fan_speed), desired_state)  
+    except Exception, e:
+        return "ERR: {} {} {} {} {}".format(
+            str(e), int(temp), mode, int(fan_speed), desired_state)
     send_stuff(temp, mode, fan_speed)
     time.sleep(2)
     return set_power(desired_state)
     
 
 @route('/set_power/<desired_state>')
-def set_power(desired_state):
-    """
-    Tries multiple times to set power to desired
-    state. Only allows one process to perform this
-    at a time.
-    """
-    
-    desired_state = True if str(desired_state) == "1" else False
-    
-    if current_state["operational_state"] > 2:
-        return "ERR: Not in operation"
-
-        
-    # TODO detect "blinking" - maybe smooth on Arduino side/here?
-    if desired_state and current_state["operational_state"] == 2:
-        return "OK: Already ON"    
-    elif not desired_state and current_state["operational_state"] == 1:
-        return "OK: Already OFF"
-    
-    if power_toggle_lock.acquire(False):        
-        try:
-            # let's try to send ON command
-            NO_ATTEMPTS = 3  
-            NO_WAITS = 2 
-            
-            # wait to see if anything is in the queue
-            # empty queue            
-            while True:
-                try:
-                    throwaway = command_q.get(block=False)
-                except Queue.Empty:
-                    # break the loop
-                    break
-            # wait for state to update itself
-            time.sleep(3)
-
-            # re-try state detection after flush
-            if desired_state and current_state["operational_state"] == 2:
-                return "OK: Already ON"    
-            elif not desired_state and current_state["operational_state"] == 1:
-                return "OK: Already OFF"
-
-            # proceed to sending
-            for i in range(NO_ATTEMPTS):
-                # flush any sent stuff              
-                with state_lock:
-                    temp      = current_state["temp"]
-                    mode      = current_state["mode"]
-                    fan_speed = current_state["fan_speed"]
-
-                power_toggle = "1"                
-                params = temp, mode, fan_speed, power_toggle    
-                command = IRCommandWrapper(params)
-                command_q.put(command)    
-                
-                # wait the packet to be picked up
-                while not command_q.empty():
-                    time.sleep(0.1)
-                            
-                # try to action the above 
-                time.sleep(4)
-                for _ in range(NO_WAITS):
-                    if desired_state \
-                        and current_state["operational_state"] == 2:
-                        return "OK: Switched ON"
-                    elif not desired_state \
-                        and current_state["operational_state"] == 1:            
-                        return "OK: Switched OFF"
-                    time.sleep(2)
-                # wait between attempts
-                time.sleep(6)
-            # if
-            return "ERR: Not able to action command"
-        finally:
-            # release us!
-            power_toggle_lock.release()
-                
-    else:
-        # we do not have a lock, something else already running
-        return "ERR: Already executing"
-
+def set_power(desired_state):    
+    raise Exception("Deprecated function")    
 
 
 output_template = """<html>
@@ -402,16 +341,43 @@ output_template = """<html>
     </body>
 </html>
 """
+
 @route('/read')
 def read_out():
     # trigger_read()
     return output_template.format("\n".join(list(lines)[::-1]))
 
 
+def get_time_formatted():
+    d_time = datetime.datetime.fromtimestamp(time.time())
+    time_formatted = d_time.strftime('%H:%M:%S')
+    return time_formatted
 
-class IRCommandWrapper(object):    
+
+
+class GenericIRCommandWrapper(object):    
     """Wrapper for commands to be enqueued"""
     def __init__(self, params):
+        
+        
+        temp, mode, fan_speed, power_var = params  
+        try:
+            if int(temp) < 16 or int(temp) > 30:
+                raise TypeError("Invalid temperature")
+            
+            if str(mode) not in ["HEAT",  "COOL",  "AUTO",  "FAN" ,  "DEHUM"]:
+                raise TypeError("Invalid mode")
+
+            if int(fan_speeds) not in [1, 2, 3, 4]:
+                raise TypeError("Invalid fan speed")
+
+            if str(power_var) not in ["0", "1"]:
+                raise TypeError("Invalid power/toggle state")
+            
+        except ValueError:
+            raise TypeError("Invalid parameters")
+        
+        # all good!        
         self.params = params
     
     def send_stuff(self):
@@ -425,7 +391,6 @@ class IRCommandWrapper(object):
                 int(fan_speed),
                 power_toggle
             )
-    
             pulses = irfun.arduino_flat_array(command)        
             # send once
             send_pulses(ser, pulses)                                              
@@ -437,13 +402,89 @@ class IRCommandWrapper(object):
             
             # store state
             set_state(*self.params)
-            return "SENT: {} {} {} {}".format(int(temp), mode, int(fan_speed), power_toggle)  
+            msg = "SENT: {} {} {} {}".format(int(temp), mode, int(fan_speed), power_toggle)  
+            lines.append("{}: {}".format(get_time_formatted(), msg))
+            return msg
         except (ValueError, KeyError):
-            return "Malformed input."
+            msg = "ERR: Malformed input {} {} {} {}".format(int(temp), mode, int(fan_speed), power_toggle)  
+            lines.append("{}: {}".format(get_time_formatted(), msg))
+            return msg
     
     def run_action(self):        
         return self.send_stuff()
 
+
+class PowerIRCommandWrapper(GenericIRCommandWrapper):
+    """Used to set power to the A/C unit"""
+    
+    def send_stuff(self):
+        
+        # TODO make sure this makes sense
+        temp, mode, fan_speed, desired_state = self.params
+        
+        """Overrides normal send stuff"""
+        desired_state = True if str(desired_state) == "1" else False
+    
+        # TODO - move this to the command sender?
+        if current_state["operational_state"] > 2:            
+            msg = "ERR: Not in operation"
+            lines.append("{}: {}".format(get_time_formatted(), msg))
+            return msg
+        
+        toggle_power = True
+        # we are in operation, but do we need to toggle power?
+        if desired_state and current_state["operational_state"] == 2:
+            msg = "OK: Already ON"    
+            lines.append("{}: {}".format(get_time_formatted(), msg))
+            toggle_power = False
+            
+        elif not desired_state and current_state["operational_state"] == 1:
+            msg = "OK: Already OFF" 
+            lines.append("{}: {}".format(get_time_formatted(), msg))
+            toggle_power = False
+        
+        if not toggle_power:
+            # convert desired state to power toggle
+            power_toggle = False
+            params = temp, mode, fan_speed, power_toggle   
+            self.params = params
+            super(PowerIRCommandWrapper, self).send_stuff()
+            
+        else:
+            # let's try to send ON command
+            NO_ATTEMPTS = 3         # number of re-send attempts
+            NO_WAITS = 2            # how many times to wait and check
+        
+            # proceed to sending
+            for i in range(NO_ATTEMPTS):            
+                # send stuff
+                power_toggle = "1"                
+                params = temp, mode, fan_speed, power_toggle   
+                self.params = params
+                super(PowerIRCommandWrapper, self).send_stuff()
+
+                # wait for the system to update itself
+                time.sleep(2)
+
+                # check a few times if all went well
+                for _ in range(NO_WAITS):
+                    if desired_state \
+                        and current_state["operational_state"] == 2:
+                        msg = "OK: Switched ON"
+                        lines.append("{}: {}".format(get_time_formatted(), msg))
+                        return msg
+                    elif not desired_state \
+                        and current_state["operational_state"] == 1:     
+                        msg = "OK: Switched OFF"
+                        lines.append("{}: {}".format(get_time_formatted(), msg))
+                        return msg       
+                    # wait between checking again
+                    time.sleep(2)
+
+                # wait between attempts
+                time.sleep(6)
+            # if
+            return "ERR: Not able to action command"
 
 if __name__=="__main__":    
 
