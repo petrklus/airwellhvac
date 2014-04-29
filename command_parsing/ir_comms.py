@@ -367,7 +367,7 @@ class GenericIRCommandWrapper(object):
             if str(mode) not in ["HEAT",  "COOL",  "AUTO",  "FAN" ,  "DEHUM"]:
                 raise TypeError("Invalid mode")
 
-            if int(fan_speeds) not in [1, 2, 3, 4]:
+            if int(fan_speed) not in [1, 2, 3, 4]:
                 raise TypeError("Invalid fan speed")
 
             if str(power_var) not in ["0", "1"]:
