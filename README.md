@@ -24,4 +24,5 @@ Project status:
 
 
 TODO
+* document arduino-based status code reading + command dispatcher hardware
 * fully reverse-engineer the "I feel" functionality - initial packet documented, but further work needed
