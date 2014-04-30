@@ -85,8 +85,10 @@ class IRSerialCommunicator(threading.Thread):
               self.logger.debug(msg)    
               lines.append("{}: {}".format(get_time_formatted(), msg))
               try:
-                  self.ser.close()
-              except e:
+                  old_ser = self.ser
+                  self.init_serial()
+                  old_ser.close()
+              except Exception, e:
                   pass
           
           time.sleep(2)
