@@ -79,15 +79,21 @@ class IRSerialCommunicator(threading.Thread):
                     self.logger.debug('reading')
                     
                 self.inputStarted = True
-              self.dat.close()
-              self.close()
-              self.join_fin()
-          except serial.serialutil.SerialException, se: 
+
+          except serial.serialutil.SerialException, se:                         
               msg = 'Comms error, retrying..{}'.format(se)
               self.logger.debug(msg)    
               lines.append("{}: {}".format(get_time_formatted(), msg))
-          # wait before loops
+              try:
+                  self.ser.close()
+              except e:
+                  pass
+          
           time.sleep(2)
+  
+        self.dat.close()
+        self.close()
+        self.join_fin()
           
     def join_fin(self):
         msg = "stopping"
