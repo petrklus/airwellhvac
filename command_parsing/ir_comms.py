@@ -24,7 +24,7 @@ class IRSerialCommunicator(threading.Thread):
         self.logger = logging.getLogger('IRSerialCommunicator')
         self.logger.debug('initializing')                        
         threading.Thread.__init__(self)
-        
+        self.baudrate = baudrate
         self.init_serial()
         #self.ser.flushInput()
         self.readCount = 0
@@ -45,7 +45,8 @@ class IRSerialCommunicator(threading.Thread):
         if not list_ports:
             raise Exception("Init failed - no valid port prefixes found")   
         port = list_ports[0]   
-        self.ser = serial.Serial(port, baudrate)
+        self.port = port
+        self.ser = serial.Serial(port, self.baudrate)
         self.ser.timeout = 1
 
     def run(self):
