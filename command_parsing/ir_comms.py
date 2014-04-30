@@ -91,7 +91,7 @@ class IRSerialCommunicator(threading.Thread):
               except Exception, e:
                   pass
           
-          time.sleep(2)
+          time.sleep(4)
   
         self.dat.close()
         self.close()
