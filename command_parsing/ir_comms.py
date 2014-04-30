@@ -511,16 +511,6 @@ if __name__=="__main__":
     dataQ = Queue.Queue(maxsize=100)
     errQ = Queue.Queue(maxsize=100)
     ser = IRSerialCommunicator(dataQ, errQ, baudrate=9600)
-
-
-    mock_serial = False
-    if mock_serial:
-        import os, pty, serial
-        master, slave = pty.openpty()
-        s_name = os.ttyname(slave)
-        ser = IRSerialCommunicator(dataQ, errQ, port=s_name, baudrate=9600)
-    else:
-        ser = IRSerialCommunicator(dataQ, errQ, port=port, baudrate=9600)
     ser.daemon = True
     ser.start()
     
