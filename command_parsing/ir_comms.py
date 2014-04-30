@@ -18,13 +18,14 @@ logging.basicConfig(filename=__file__.replace('.py','.log'),level=logging.DEBUG,
 """
 
 # from http://stackoverflow.com/questions/18752980/reading-serial-data-from-arduino-with-python
+import glob
 class IRSerialCommunicator(threading.Thread):
     def __init__(self, dataQ, errQ, port, baudrate=115200):
         self.logger = logging.getLogger('IRSerialCommunicator')
-        self.logger.debug('initializing')
+        self.logger.debug('initializing')                        
         threading.Thread.__init__(self)
-        self.ser = serial.Serial(port, baudrate)
-        self.ser.timeout = 1
+        
+        self.init_serial()
         #self.ser.flushInput()
         self.readCount = 0
         self.sleepDurSec = 5
@@ -37,6 +38,14 @@ class IRSerialCommunicator(threading.Thread):
         self.dat = None
         self.inputStarted = False
         self.ver = 0.1
+        
+    
+    def init_serial(self):
+        list_ports = glob.glob("/dev/ttyACM*")
+        if not list_ports:
+            raise Exception("Init failed - no valid port prefixes found")                
+        self.ser = serial.Serial(port, baudrate)
+        self.ser.timeout = 1
 
     def run(self):
         self.logger.debug('Serial reader running')        
@@ -72,6 +81,7 @@ class IRSerialCommunicator(threading.Thread):
         return self.ser.isOpen()
 
     def open(self):
+          self.init_serial()
           self.ser.open()
 
     def stopDataAquisition(self):
@@ -495,10 +505,10 @@ class PowerIRCommandWrapper(GenericIRCommandWrapper):
 if __name__=="__main__":    
 
     # TODO make this configurable    
-    port = "/dev/ttyACM0"
+    # port = "/dev/ttyACM0"
     dataQ = Queue.Queue(maxsize=100)
     errQ = Queue.Queue(maxsize=100)
-    ser = IRSerialCommunicator(dataQ, errQ, port=port, baudrate=9600)
+    ser = IRSerialCommunicator(dataQ, errQ, baudrate=9600)
 
 
     mock_serial = False
