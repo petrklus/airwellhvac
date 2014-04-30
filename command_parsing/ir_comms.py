@@ -17,12 +17,23 @@ import logging
 logging.basicConfig(filename=__file__.replace('.py','.log'),level=logging.DEBUG,format='%(asctime)s [%(name)s.%(funcName)s] %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode='a')
 """
 
+
+##### command receiving processing
+lines = collections.deque(maxlen=100)
+
+def get_time_formatted():
+    d_time = datetime.datetime.fromtimestamp(time.time())
+    time_formatted = d_time.strftime('%H:%M:%S')
+    return time_formatted
+
 # from http://stackoverflow.com/questions/18752980/reading-serial-data-from-arduino-with-python
 import glob
 class IRSerialCommunicator(threading.Thread):
     def __init__(self, dataQ, errQ, baudrate=115200):
         self.logger = logging.getLogger('IRSerialCommunicator')
-        self.logger.debug('initializing')                        
+        msg = 'initializing'        
+        self.logger.debug(msg)    
+        lines.append("{}: {}".format(get_time_formatted(), msg))                    
         threading.Thread.__init__(self)
         self.baudrate = baudrate
         self.init_serial()
@@ -50,7 +61,9 @@ class IRSerialCommunicator(threading.Thread):
         self.ser.timeout = 1
 
     def run(self):
-        self.logger.debug('Serial reader running')        
+        msg = 'Serial reader running'
+        self.logger.debug(msg)    
+        lines.append("{}: {}".format(get_time_formatted(), msg))
         dataIn = False
         while not self.stoprequest.isSet():
           try:
@@ -64,22 +77,28 @@ class IRSerialCommunicator(threading.Thread):
                     self.dataQ.put([time.time(), dat])
                 if not self.inputStarted:
                     self.logger.debug('reading')
+                    
                 self.inputStarted = True
               self.dat.close()
               self.close()
               self.join_fin()
           except serial.serialutil.SerialException, se: 
-              self.logger.debug('Comms error, retrying..{}'.format(se))
-          
+              msg = 'Comms error, retrying..{}'.format(se)
+              self.logger.debug(msg)    
+              lines.append("{}: {}".format(get_time_formatted(), msg))
           # wait before loops
           time.sleep(2)
           
     def join_fin(self):
-        self.logger.debug('stopping')
+        msg = "stopping"
+        self.logger.debug(msg)    
+        lines.append("{}: {}".format(get_time_formatted(), msg))
         self.stoprequest.set()
 
     def isOpen(self):
-        self.logger.debug('Open? ' + str(self.ser.isOpen()))
+        msg = 'Open? ' + str(self.ser.isOpen())
+        self.logger.debug(msg)    
+        lines.append("{}: {}".format(get_time_formatted(), msg))
         return self.ser.isOpen()
 
     def open(self):
@@ -262,8 +281,6 @@ operational_states = {
 
 
 
-##### command receiving processing
-lines = collections.deque(maxlen=50)
 def command_reader():
     while True:
         try:
@@ -366,10 +383,6 @@ def read_out():
     return output_template.format("\n".join(list(lines)[::-1]))
 
 
-def get_time_formatted():
-    d_time = datetime.datetime.fromtimestamp(time.time())
-    time_formatted = d_time.strftime('%H:%M:%S')
-    return time_formatted
 
 
 
