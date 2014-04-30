@@ -39,24 +39,30 @@ class IRSerialCommunicator(threading.Thread):
         self.ver = 0.1
 
     def run(self):
-        self.logger.debug('Serial reader running')
+        self.logger.debug('Serial reader running')        
         dataIn = False
         while not self.stoprequest.isSet():
-          if not self.isOpen():
-            self.connectForStream()
+          try:
+              if not self.isOpen():
+                self.connectForStream()
 
-          while self.keepAlive:
-            dat = self.ser.readline()
-            # some data validation goes here before adding to Queue...
-            if len(dat) > 2:
-                self.dataQ.put([time.time(), dat])
-            if not self.inputStarted:
-                self.logger.debug('reading')
-            self.inputStarted = True
-          self.dat.close()
-          self.close()
-          self.join_fin()
-
+              while self.keepAlive:
+                dat = self.ser.readline()
+                # some data validation goes here before adding to Queue...
+                if len(dat) > 2:
+                    self.dataQ.put([time.time(), dat])
+                if not self.inputStarted:
+                    self.logger.debug('reading')
+                self.inputStarted = True
+              self.dat.close()
+              self.close()
+              self.join_fin()
+          except serial.serialutil.SerialException, se: 
+              self.logger.debug('Comms error, retrying..{}'.format(se))
+          
+          # wait before loops
+          time.sleep(2)
+          
     def join_fin(self):
         self.logger.debug('stopping')
         self.stoprequest.set()
